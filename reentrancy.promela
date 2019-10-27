@@ -1,0 +1,100 @@
+/* 
+Formal Verification of Reentry attack
+Model Checker promela
+Author: Ali Bahrani
+More to read about attack : Mastering Ethereum by Gavin Wood and Andreas M. Antonopoulos
+*/
+
+//
+bool attackDone = false;
+bool attackerRecievedStolenEther = false;
+int stolenEther = 0;
+int etherStoreBalance = 0;
+int fallbackDone = false;
+int attackerEOAbalance = 0;
+bool depositDone = false;
+//bool transactionMutex = 0
+
+// Contract EtherStore
+int lastWithdrawTime[8]; // This variable is ignored due to abstraction.
+int balance[8];
+proctype depositFunds(int id; int value)
+{   printf("deposit from user %d\n", id);
+    //(transactionMutex == 0) -> transactionMutex = 1;
+    etherStoreBalance = etherStoreBalance + value;
+    balance[id] = balance[id] + value;
+    if :: id==0 ->  
+    printf("attacker deposited!\n");
+    depositDone = true;
+    :: id != 0 -> printf("non attacker deposited\n");
+    fi;
+    //transactionMutex = 0;
+    
+}
+
+proctype withdrawFunds(int id; int value)
+{
+    //(transactionMutex == 0) -> transactionMutex = 1;
+    printf("Withdraw called by %d\n", id);
+    if :: etherStoreBalance >= value ->
+
+    {if :: (balance[id] >= value) ->
+        etherStoreBalance = etherStoreBalance - value;
+        run fallback(value);
+        (fallbackDone) -> balance[id] = balance[id] - value
+    :: (balance[id] < value) ->
+        printf("Insufficient balance!\n") 
+    fi;}
+    fi;
+    //transactionMutex = 0;
+}
+
+//contract Attack
+proctype attackEtherStore()
+{
+    printf("Attack started\n");
+    run depositFunds(0, 1);
+    (depositDone) -> run withdrawFunds(0, 1);
+}
+
+proctype collectEther()
+{
+    attackerEOAbalance = attackerEOAbalance + stolenEther;
+    attackerRecievedStolenEther = true;
+}
+
+proctype fallback(int value)
+{
+    printf("fallback called\n");
+    stolenEther = stolenEther + value;
+    if :: (etherStoreBalance >= 1) -> 
+    run withdrawFunds(0, 1);
+    :: (etherStoreBalance < 1) ->
+    fallbackDone = true;
+    attackDone = true; fi
+    
+}
+
+//scenario
+
+init
+{
+    //{
+// {
+    //Attacker steps
+
+        run attackEtherStore();
+        
+
+    //Other bank clients
+    run depositFunds(1, 3);
+    run depositFunds(2, 1);
+    run depositFunds(3, 1); 
+    
+    (attackDone) -> run collectEther();
+    (attackerRecievedStolenEther) -> printf("The attacker has stolen %d units\n", attackerEOAbalance);
+ 
+    //}
+//}
+
+}
