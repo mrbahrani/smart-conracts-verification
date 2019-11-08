@@ -1,0 +1,74 @@
+/*
+*/
+
+// Game Contract
+int payoutMileStone1 = 30;
+int mileStone1Reward = 20;
+int payoutMileStone2 = 50;
+int mileStone2Reward = 30;
+int finalMileStone = 100;
+int finalReward = 50;
+int game_balance = 0;
+int redeemableEther[8];
+int gameMutex = 0;
+
+proctype play(int ether_value; int address)
+{
+(gameMutex == 0) -> gameMutex = 1;
+if :: ((ether_value == 5)) ->
+if :: (game_balance <= finalReward)->
+game_balance = game_balance + 5;
+printf("%d added 5 so %d\n", address, game_balance);
+if :: (game_balance == payoutMileStone1) ->
+    printf("%d ether was sent to %d\n", mileStone1Reward, address);
+    :: (game_balance != payoutMileStone1) -> address;
+
+fi;
+
+if :: (game_balance == payoutMileStone2) ->
+    printf("%d ether was sent to %d\n", mileStone2Reward, address);
+    :: (game_balance != payoutMileStone2) -> address;
+
+fi;
+
+if :: (game_balance == finalMileStone) ->
+    printf("%d ether was sent to %d\n", finalReward, address);
+    :: (game_balance != finalReward) -> address;
+
+fi;
+:: (game_balance > finalReward) -> printf("The game is finished\n");
+fi;
+:: ((ether_value % 5) != 0) -> printf("log: wrong ether value\n");
+fi;
+gameMutex = 0;
+}
+
+proctype claimReward(int address)
+{
+    if :: (game_balance >= finalMileStone) -> game_balance = game_balance - redeemableEther[address];
+    printf("The money %d ether is transfered to adrress %d", redeemableEther[address], address );
+    :: (game_balance < finalMileStone) -> printf("The game is not finished yet!\n");
+    fi;
+}
+
+
+//Attacker contract
+int attacker_balance = 6;
+proctype attackerSelfdestruct()
+{
+    game_balance = game_balance + 0;
+    attacker_balance = 0;
+}
+
+init
+{
+    
+    run play(5,1);
+    run play(5,3);
+    run play(5,1);
+    run attackerSelfdestruct();
+    run play(5,2);
+    run play(5,1);
+    run play(5,2);
+
+}
